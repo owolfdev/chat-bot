@@ -1,6 +1,6 @@
-// lib/chat/handleChatRequest.ts
+import { enforceIpRateLimit } from "@/lib/middleware/rate-limit";
 
-type ChatRequest = { message: string };
+type ChatRequest = { message: string; ip?: string };
 type ChatResponse = { response: string };
 
 export async function handleChatRequest(
@@ -8,6 +8,10 @@ export async function handleChatRequest(
 ): Promise<ChatResponse> {
   if (!input.message || typeof input.message !== "string") {
     throw new Error("Invalid input: message required");
+  }
+
+  if (input.ip) {
+    await enforceIpRateLimit(input.ip);
   }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -22,12 +26,7 @@ export async function handleChatRequest(
     }),
   });
 
-  if (!res.ok) {
-    throw new Error("OpenAI error");
-  }
-
+  if (!res.ok) throw new Error("OpenAI error");
   const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || "No response";
-
-  return { response: content };
+  return { response: data.choices?.[0]?.message?.content || "No response" };
 }
